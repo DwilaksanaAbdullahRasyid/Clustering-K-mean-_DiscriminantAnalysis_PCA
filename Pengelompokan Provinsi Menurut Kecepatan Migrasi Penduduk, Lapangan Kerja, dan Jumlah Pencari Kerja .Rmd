@@ -1,0 +1,299 @@
+---
+title: "Pengelompokan Provinsi Menurut Kecepatan Migrasi Penduduk, Lapangan Kerja, dan Jumlah Pencari Kerja"
+author: "Dwilaksana Abdullah Rasyid"
+date: "January 24, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+ #Deskripsi Data
+Data yang digunakan adalah data sekunder yang diambil yang diambil dari Badan Pusat Satistik(BPS) mengenai jumlah pencari kerja, Migrasi dan lapangan kerja pada 9 sektor lapangan kerja di Indonesia
+```{r}
+setwd("D:/DSI/for git hub")
+data1 <- read.csv("cluster provinsi.csv")
+provinsi <- read.csv("provinsi.csv")
+rownames(data1) <- provinsi$propinsi
+```
+
+
+### Data Set
+
+Variabel yang digunakan adalah sebagai berikut
+
+Variabel | Keterangan
+--------- | ----------
+X1  | Pencari Kerja Laki-laki
+X2  | Pencari Kerja Perempuan
+X3  | Migrasi tahun 2015
+X4  | Pertanian
+X5  | Pertambangan Penggalian
+X6  | Industri Pengolahan
+X7  | Listrik Gas Air Bersih
+X8  | Bangunan Konstruksi
+X9  | Perdagangan Hotel Restoran
+X10 | Pengangkutan
+X11 | BankLembaga Keuangan
+X12 | Jasajasa
+
+#### Explorasi data ringkasan 5 numerik data (Summary)
+```{r}
+summary(data1)
+```
+Dari output diatas dapat dilihat bahwa rata-rata pencari kerja laki-laki adalah 23224 sedangkan perempuan adalah 22644. Untuk migrasi tahun 2015, rata-rata sebanyak 454608, demikian untuk variabel lainnya.
+
+***********************************************************************                                                                     
+#clustering provinsi
+##K-Means Cluster
+K-means Cluster merupakan salah satu metode non hirarki. Dalam kasus ini telah ditentukan jumlah klaster yang akan ditentukan. Jumlah klaster dalam kasus ini sebanyak 3
+
+Berikut adalah library yang digunakan dalam K-means cluster
+```{r}
+library(cluster)
+library(dendextend)
+library(factoextra)
+```
+
+####Penentuan jumlah klaster
+
+```{r}
+set.seed(123)
+km <- kmeans(df1, 3, nstart = 25)
+print(km)
+```
+  
+Berdasarkan Output diatas dalam dilihat bahwa jumlah klaster yang dibentuk sebanayak 3 klaster. Klaster 1 memiliki 6 anggota, klaster 2 memilki 4 anggota sedangkan klaster memiliki 24 anggota. untuk mengetahui masing-masing anggota klaster dapat dilihat pada visualisasi dibawah ini.
+
+#### Visualisasi anggota klaster
+```{r}
+fviz_cluster(km, data = data1,
+             palette = c("black", "blue", "red"),
+             ellipse.type = "euclid", # Concentration ellipse
+             star.plot = T, # Add segments from centroids to items
+             repel = T, # Avoid label overplotting (slow)
+             ggtheme = theme_minimal()
+)
+```
+
+Dari visualisasi diatas dapat dilihat bahwa anggota pada
+klaster 1 adalah DKI Jakarta, Banten, Kalimantan Timur, Kalimantan Utara, Kepulauan Riau dan Papua
+Klaster 2 adalah Jawa Tengah, Jawa Timur, Jawa Barat dan Sulawesi Selatan
+Sedangkan sisanya masuk dalam klaster ketiga.
+
+####clustering variables
+#K-Means Cluster
+setelah dilakukan clustering pada provinsi, selanjutnya dilakukan clustering terhadap variabel yang mempengaruhi tiap cluster pada cluster provinsi dengan metode yang sama dan jumlah cluster yang sama.
+```{r}
+#data untuk clustering variabel
+setwd("D:/DSI/for git hub")
+data2 <- read.csv("cluster variabel.csv")
+variabel <- read.csv("variabel.csv")
+rownames(data2) <- variabel$variables
+
+####Penentuan jumlah klaster
+set.seed(123)
+km <- kmeans(data2, 3, nstart = 25)
+print(km)
+
+#visualisasi cluster variabel
+fviz_cluster(km, data = data2,
+             palette = c("black", "blue", "red"),
+             ellipse.type = "euclid", # Concentration ellipse
+             star.plot = T, # Add segments from centroids to items
+             repel = T, # Avoid label overplotting (slow)
+             ggtheme = theme_minimal()
+)
+```
+dari hasil visualisasi maka didapatkan variabel yang mempengaruhi
+cluster 1 yaitu migrasi tahun 2015, pencari kerja laki-laki, pencari kerja peremouan
+cluster 2 yaitu pertanian, industri pengolahan, jasa jasa, bank lembaga keuangan, pengangkutan, bangunan konstruksi, perdagangan hotel restoran, listrik gas air bersih
+cluster 3 yaitu pertambangan dan penggalian
+
+Kemudian data hasil clustering provinsi dibentuk sebagai data frame yang baru
+```{r}
+data.baru1 <- cbind(df, cluster=km$cluster) 
+head(data.baru1)
+
+dat <- as.data.frame(data.baru1)
+```
+
+**************************************
+
+Sebelum melakukan analisis diskriminan perlu mengecek asumsi analisis diskriminan. Asumsi diskriminan diantaranya adalah tidak ada korelasi yang tinggi antara variabel bebas(Multikolinearitas), homogenitas matriks kovarians. 
+
+### Asumsi Multikolinearitas
+Salah satu cara untuk mengecek ada atau tidaknya multikolinearitas adalah dengan melihat nilai korelasi antara variabel bebas. Jika nilai korelasi antara variabel bebas diatas 0.70 berarti diduga ada multikolinearitas.
+```{r}
+round(cor(data1,3))
+
+```
+
+```{r}
+library(psych)
+library(corrplot)
+```
+
+```{r}
+pairs.panels(data1)
+
+```
+
+Dari output dan visualisasi diatas dapat dilihat bahwa ada beberapa nilai korelasi yang diatas 0.70 sehingga terjadi multikolinearitas dalam data tersebut. Untuk mengatasi masalah multikolinearitas maka akan melakukan dengan metode _Principal Component Analysis_ (PCA)
+
+##_Principal Component Analysis_
+Analisis komponen utama digunakan untuk mengelompokkan variabel-variabel yang memiliki korelasi yang tinggi. Berikut adalah analisis dan pembahasan untuk analisis komponen utama.
+
+#### Visualisasi Plot
+
+```{r}
+plot(eigen(cor(df))$value,ylab = "variance", xlab = "component")
+lines(eigen(cor(df))$values,)
+```
+
+Dari _Scree Plot_ dapat dilihat bahwa dari titik pertama ke titik kedua menunjukkan garis yang turun secara curam dan dari titik kedua ke titik ketiga turun secara landai. Namun dalam penentuan komponen dengan visualisai plot mungkin terlalu objektif sehingga untuk mengetahui berapa komponen yang akan terbentuk maka akan melihat niai _Eigen Value_ yang kurang sama dengan satu (>=1). Hasil _Eigen Value_ ditunjukkan pada sebagai berikut
+
+####Penentuan jumlah komponen berdasarkan _eigen value_
+```{r}
+pc <- prcomp(df,
+             center = T,
+             scale. = T)
+summary(pc)
+```
+Nilai eigenvalue diatas menunjukkan dasar pembentuk faktor baru yang terletak pada komponen pertama, kedua dan ketiga dimana nilai eigen value-nya lebih dari satu. Nilai total eigen value pada komponen pertama sebesar 2.31 komponen kedua sebesar 1.57 dan komponen ketiga sebesar 1.03. Hal tersebut mempunyai arti bahwa terdapat 3 komponen baru yang terbentuk. Ketiga komponen baru tersebut memiliki nilai kumulatif varians sebesar 74.35 persen yang mempunyai arti bahwa ketiga komponen baru yang terbentuk mampu menjelaskan 74.35 persen variabilitas dari data yang dihasilkan.
+
+
+#### Mengambil 3 komponen baru
+```{r}
+pca <- round(pc$x[,1:3],3)
+head(pca)
+
+```
+
+```{r}
+data.baru1 <- cbind(df, cluster=km$cluster)
+klaster <- data.baru1[,13]
+head(klaster)
+```
+
+
+#### Mengabungan data PCA dan  data Cluster
+Menggabungan PCA dan Cluster dengan membuat data frame baru untuk analisis diskriminan 
+```{r}
+dsk <- cbind(pca,klaster)
+head(dsk)
+```
+
+# ANALISIS DISKRIMINAN
+```{r}
+data.disk <- as.data.frame(dsk)
+attach(data.disk)
+```
+
+
+#### Data Untuk Analisis Diskriminan
+```{r}
+datatable(data.disk)
+```
+
+
+### Melihat Struktur data
+Dalam analisis diskriminan variabel dependen(Y) harus kategori(non metrik). untuk melihat struktur bisa 
+
+```{r}
+str(data.disk)
+```
+Dari output diatas variavel Y (klaster), Software R baca numerik. oleh karena itu harus mengubah struktur datanya. berikut adalah caranya.
+
+```{r}
+data.disk$klaster <- as.factor(data.disk$klaster)
+str(data.disk)
+```
+Dapat dilihat bahwa variabel Y (klaster) sudah jadi variabel kategori.
+
+library untuk analisis diskriminan
+```{r}
+library(psych)
+library(MASS)
+```
+
+```{r}
+pairs.panels(data.disk[1:3],
+             gap=0,
+             bg=c("red","blue","green")[data.disk$klaster],
+             pch = 21)
+```
+Plot diatas menunjukkan bahwa antara variabel bebas memiliki nilai korelasi 0 sehingga tidak terjadi multikolinearitas.
+
+
+```{r}
+library(biotools)
+boxM(data.disk[,1:3], data.disk$klaster)
+```
+
+
+## Data Partisi
+Data partisi yang dimaksud disini adalah membuat data training dan data testing. data training digunakan untuk membuat model diskriminan sedangkan data testing digunakan untuk mengvaldasi model atau sejauh mana model tersebut bisa digunakan untuk memprediksi kasus baru. Karena data sampel  terlalu kecil sehingga data disini saya ambil data random 80% dari data untuk training sedangkan 20% untuk testing. berikut adalah hasilnya
+
+```{r}
+set.seed(222)
+ind <- sample(2, nrow(data.disk),
+              replace = T,
+              prob = c(0.8,0.2))
+
+training <- data.disk[ind==1,]
+testing <- data.disk[ind==2,]
+```
+
+### Model Diskriminan
+```{r}
+model <- lda(klaster ~., data = training)
+model
+```
+Output diatas menunjukkan model diskriminan yang ditunjukkan pada _Coefficients of linear discriminants_.
+Model untuk LD1:
+
+First  discriminant function is a linear combination of three variables (PC1, PC2, PC3)
+
+Fungsi diskriminan dapat ditulis sebagai berikut
+
+LD1 = 0.2411362 PC1 - 1.3515285PC2 + 0.3603853 PC3
+
+Model diatas dapat diinterpretasi bahwa variabel PC1 dan PC3 memiliki yang positif dan searah dengan fungsi diskriminan. Jika PC1 dan PC3 naik satu satuan maka akan menaikan fungsi diskriminan sedangkan PC2 memiliki koefesien yang negatif artinya variabel PC2 naik maka akan menerunkan nilai skor diskriminan.
+
+
+#### Confusion Matrix and Accuracy untuk data training
+```{r}
+p.training <- predict(model, training)$class
+tabel.training <- table(Actual = training$klaster, predicted =  p.training)
+tabel.training
+```
+Terlihat bahwa hanya ada satu data yang salah klasifikasi. Data tersebut awalnya masuk klaster 1 tetapi model diskriminan prediksi masuk klaster 3.
+
+#### Accuracy data training
+```{r}
+sum(diag(tabel.training))/sum(tabel.training)
+```
+Berdasarkan output diatas dapat dilihat bahwa akurasi untuk data training sebesar 0.9629 atau tingkat akurasi sangat tinggi yaitu mencapai 96.19% 
+
+
+#### Confusion Matrix and Accuracy untuk data training
+```{r}
+p.testing <- predict(model, testing)$class
+tabel.testing <- table(Actual = testing$klaster, predicted =  p.testing)
+tabel.testing
+```
+
+#### Accuracy data testing
+```{r}
+sum(diag(tabel.testing))/sum(tabel.testing)
+```
+Terlihat bahwa akurasi untuk data testing sebesar 100%.
+
+
+***
+***
+***
+
+
